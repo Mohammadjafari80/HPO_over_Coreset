@@ -1,37 +1,52 @@
 import argparse
-
+from feature_extractor import feature_extractors
 
 def parse_args():
     parser = argparse.ArgumentParser(description="PyTorch Training")
 
 
     # Model
-    parser.add_argument("--arch", type=str, help="Model achitecture")
+    parser.add_argument("--arch", type=str, help="Model achitecture",
+                        choices=["preactresnet18",
+                                 "preactresnet34",
+                                 "preactresnet50",
+                                 "preactresnet101",
+                                 "preactresnet152",
+                                 "resnet20",
+                                 "resnet32",
+                                 "resnet44",
+                                 "resnet56",
+                                 "resnet110",
+                                 "resnet1202"])
+    
+    
+    # Feature extractor
+    parser.add_argument("--feature-extractor", type=str, help="Feature extractor achitecture", choices=feature_extractors)
 
     # Data
     parser.add_argument(
         "--dataset",
         type=str,
-        choices=["CIFAR10", "CIFAR100", "TinyImageNet"],
+        choices=["cifar10", "cifar100", "TinyImageNet"],
         help="Dataset for training and eval",
     )
     
     parser.add_argument(
-        "--coreset_method",
+        "--coreset-method",
         type=str,
         choices=["moderate_selection", "random"],
         help="Coreset selection method",
     )
     
     parser.add_argument(
-        "--weighting_method",
+        "--weighting-method",
         type=str,
         choices=["uniform", "meta_weight_net"],
         help="Weighting selection method",
     )
     
     parser.add_argument(
-        "--coreset_ratio",
+        "--coreset-ratio",
         type=float,
         default=0.1,
         help="Coreset ratio",
@@ -48,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--num-workers",
         type=int,
-        default=2,
+        default=4,
         metavar="N",
     )
     
@@ -84,18 +99,20 @@ def parse_args():
     parser.add_argument(
         "--lr-schedule",
         type=str,
-        default="cosine",
-        choices=("step", "cosine"),
+        default="step",
+        choices=("step"),
         help="Learning rate schedule",
     )
     
-    
     parser.add_argument("--momentum", type=float, default=0.9, help="SGD momentum")
-
+    parser.add_argument("--milestone-ratios", type=float, default=[0.5, 0.75])
+    parser.add_argument("--test-interval", type=int, default=5)
+    
     # Additional
     parser.add_argument("--seed", type=int, default=1, help="random seed")
     parser.add_argument(
         "--device", type=str, default="cuda", choices=("cuda", "cpu")
     )
-
+    parser.add_argument("--wandb-api", type=str)
+    
     return parser.parse_args()

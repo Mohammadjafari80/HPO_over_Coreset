@@ -1,5 +1,5 @@
 import numpy as np
-from coreset_selection import CoresetSelection
+from .base_selection import CoresetSelection
 
 class ModerateCoresetSelection(CoresetSelection):
 

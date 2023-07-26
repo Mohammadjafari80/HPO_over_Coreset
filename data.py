@@ -6,7 +6,18 @@ import urllib.request
 from torchvision.datasets import ImageFolder
 from torchvision.datasets import CIFAR10, CIFAR100
 import torchvision.transforms as transforms
+import torch
+from torch.utils.data import Dataset, Subset
+import numpy as np
 
+class CustomSubset(Subset):
+    def __init__(self, dataset, indices):
+        super(CustomSubset, self).__init__(dataset, indices)
+        self.classes = np.array(dataset.classes)
+        self.targets = np.array([dataset.targets[i] for i in indices])
+        self.data = np.array([dataset.data[i] for i in indices])
+        
+        
 MEAN = {
     'cifar10': (0.4914, 0.4822, 0.4465),
     'cifar100': (0.5071, 0.4867, 0.4408),

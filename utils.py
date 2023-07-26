@@ -71,7 +71,7 @@ def get_features(model, trainloader, device):
     model = model.to(device)
 
     targets, features = [], []
-    for img, target in tqdm(trainloader):
+    for img, target in tqdm(trainloader, desc='Extracting features'):
         targets.extend(target.numpy().tolist())
         img = img.to(device)
         feature = model(img).detach().cpu().numpy()
@@ -82,11 +82,11 @@ def get_features(model, trainloader, device):
 
     return features.squeeze(), targets
 
-def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch_size=128, num_worker=4, device='cuda'):
+def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch_size=128, num_workers=4, device='cuda'):
     model = get_pretrained_model(model_name)
 
-    coreset_loader = torch.utils.data.DataLoader(coreset, batch_size=batch_size, shuffle=False, num_workers=num_worker)
-    full_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_worker)
+    coreset_loader = torch.utils.data.DataLoader(coreset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    full_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     
     # Get the coreset features and full features
     coreset_features, _ = get_features(model, coreset_loader, device)
@@ -103,3 +103,11 @@ def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch
     full_weights = coreset_weights[indices[:, 0]]
 
     return full_weights
+
+
+
+def get_histogram(weights):
+    # Compute the histogram using np.histogram
+    hist = np.histogram(weights, bins=20, range=(0, 1))
+
+    return wandb.Histogram(np_histogram=hist)

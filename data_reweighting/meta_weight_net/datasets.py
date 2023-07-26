@@ -9,7 +9,6 @@ def build_dataloader(
         testset,
         num_meta_total=1000,
         batch_size=100,
-        seed=1,
 ):
 
     train_dataloader_unshuffled = DataLoader(trainset, batch_size=batch_size, shuffle=False, pin_memory=True)

@@ -1,4 +1,4 @@
-from coreset_selection import CoresetSelection
+from .base_selection import CoresetSelection 
 import numpy as np
 
 class RandomCoresetSelection(CoresetSelection):

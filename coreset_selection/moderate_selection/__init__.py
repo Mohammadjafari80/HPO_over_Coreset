@@ -1,1 +1,0 @@
-from coreset_selection.moderate_selection.select import ModerateCoresetSelection
