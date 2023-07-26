@@ -23,3 +23,4 @@ def get_pretrained_model(backbone='resnet18'):
         
     model = torch.nn.Sequential(*list(model.children())[:-1])
     
+    return model

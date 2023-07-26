@@ -1,44 +1,13 @@
-import argparse
 import torch.optim
+from tqdm import tqdm
 # from torch.utils.tensorboard import SummaryWriter
-from meta import *
-from model import *
-from codes.HPO_over_Coreset.data_reweighting.meta_weight_net.datasets import *
-from utils import *
-
-
-# parser = argparse.ArgumentParser(description='Meta_Weight_Net')
-# parser.add_argument('--device', type=str, default='cuda')
-# parser.add_argument('--seed', type=int, default=1)
-# parser.add_argument('--meta_net_hidden_size', type=int, default=100)
-# parser.add_argument('--meta_net_num_layers', type=int, default=1)
-
-# parser.add_argument('--lr', type=float, default=.1)
-# parser.add_argument('--momentum', type=float, default=.9)
-# parser.add_argument('--dampening', type=float, default=0.)
-# parser.add_argument('--nesterov', type=bool, default=False)
-# parser.add_argument('--weight_decay', type=float, default=5e-4)
-# parser.add_argument('--meta_lr', type=float, default=1e-5)
-# parser.add_argument('--meta_weight_decay', type=float, default=0.)
-
-# parser.add_argument('--dataset', type=str, default='cifar10')
-# parser.add_argument('--num_meta', type=int, default=1000)
-# parser.add_argument('--imbalanced_factor', type=int, default=None)
-# parser.add_argument('--corruption_type', type=str, default=None)
-# parser.add_argument('--corruption_ratio', type=float, default=0.)
-# parser.add_argument('--batch_size', type=int, default=100)
-# parser.add_argument('--max_epoch', type=int, default=120)
-
-# parser.add_argument('--meta_interval', type=int, default=1)
-# parser.add_argument('--paint_interval', type=int, default=20)
-
-# args = parser.parse_args()
-# print(args)
+from data_reweighting.meta_weight_net.meta import *
+from data_reweighting.meta_weight_net.model import *
+from data_reweighting.meta_weight_net.datasets import *
+from data_reweighting.meta_weight_net.utils import *
 
 
 def meta_weight_net(args, trainset, testset):
-    set_cudnn(device=args.device)
-    set_seed(seed=args.seed)
 
     meta_net = MLP(hidden_size=args.meta_net_hidden_size, num_layers=args.meta_net_num_layers).to(device=args.device)
     net = ResNet32(args.num_classes).to(device=args.device)
@@ -53,10 +22,11 @@ def meta_weight_net(args, trainset, testset):
         weight_decay=args.weight_decay,
         nesterov=args.nesterov,
     )
+    
     meta_optimizer = torch.optim.Adam(meta_net.parameters(), lr=args.meta_lr, weight_decay=args.meta_weight_decay)
     lr = args.lr
 
-    train_dataloader, meta_dataloader, test_dataloader = build_dataloader(
+    train_dataloader, meta_dataloader, test_dataloader, train_dataloader_unshuffled = build_dataloader(
         seed=args.seed,
         trainset=trainset,
         testset=testset,
@@ -66,7 +36,7 @@ def meta_weight_net(args, trainset, testset):
 
     meta_dataloader_iter = iter(meta_dataloader)
 
-    for epoch in range(args.max_epoch):
+    for epoch in tqdm(list(range(args.max_epoch))):
 
         if epoch >= 80 and epoch % 20 == 0:
             lr = lr / 10
@@ -79,7 +49,7 @@ def meta_weight_net(args, trainset, testset):
             inputs, labels = inputs.to(args.device), labels.to(args.device)
 
             if (iteration + 1) % args.meta_interval == 0:
-                pseudo_net = ResNet32(args.dataset == 'cifar10' and 10 or 100).to(args.device)
+                pseudo_net = ResNet32(args.num_classes).to(args.device)
                 pseudo_net.load_state_dict(net.state_dict())
                 pseudo_net.train()
 
@@ -139,3 +109,19 @@ def meta_weight_net(args, trainset, testset):
             test_accuracy,
             lr,
         ))
+        
+        weight_array = []
+        
+        for iteration, (inputs, labels) in enumerate(train_dataloader_unshuffled):
+            net.train()
+            inputs, labels = inputs.to(args.device), labels.to(args.device)
+            outputs = net(inputs)
+            loss_vector = functional.cross_entropy(outputs, labels.long(), reduction='none')
+            loss_vector_reshape = torch.reshape(loss_vector, (-1, 1))
+            
+            with torch.no_grad():
+                weight = meta_net(loss_vector_reshape)
+                
+            weight_array.extend(weight.cpu().numpy().squeeze().tolist())
+            
+        return weight_array

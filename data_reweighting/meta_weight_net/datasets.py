@@ -5,30 +5,14 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 def build_dataloader(
-        seed=1,
         trainset,
         testset,
         num_meta_total=1000,
         batch_size=100,
+        seed=1,
 ):
 
-    np.random.seed(seed)
-    normalize = transforms.Normalize(
-        mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
-        std=[x / 255.0 for x in [63.0, 62.1, 66.7]],
-    )
-
-    train_transforms = transforms.Compose([
-        transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    test_transforms = transforms.Compose([
-        transforms.ToTensor(),
-        normalize,
-    ])
+    train_dataloader_unshuffled = DataLoader(trainset, batch_size=batch_size, shuffle=False, pin_memory=True)
 
     num_classes = len(trainset.classes)
     num_meta = int(num_meta_total / num_classes)
@@ -54,4 +38,4 @@ def build_dataloader(
     meta_dataloader = DataLoader(meta_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_dataloader = DataLoader(testset, batch_size=batch_size, pin_memory=True)
 
-    return train_dataloader, meta_dataloader, test_dataloader
+    return train_dataloader, meta_dataloader, test_dataloader, train_dataloader_unshuffled
