@@ -2,6 +2,8 @@ import random
 import numpy as np
 import torch
 import torch.nn.functional as F
+from preact_resnet import PreActResNet18, PreActResNet34, PreActResNet50, PreActResNet101, PreActResNet152
+from resnet import resnet20, resnet32, resnet44, resnet56, resnet110, resnet1202
 
 def set_cudnn(device='cuda'):
     torch.backends.cudnn.enabled = (device == 'cuda')
@@ -23,5 +25,32 @@ class WeightedCrossEntropyLoss(nn.Module):
         weighted_loss = torch.mean(loss * weights)
         return weighted_loss
     
+def get_model(arch, num_classes):
     
+    if arch.lower() == 'preactresnet18':
+        return PreActResNet18(num_classes=num_classes)
+    elif arch.lower() == 'preactresnet34':
+        return PreActResNet34(num_classes=num_classes)
+    elif arch.lower() == 'preactresnet50':
+        return PreActResNet50(num_classes=num_classes)
+    elif arch.lower() == 'preactresnet101':
+        return PreActResNet101(num_classes=num_classes)
+    elif arch.lower() == 'preactresnet152':
+        return PreActResNet152(num_classes=num_classes)
+    elif arch.lower() == 'resnet20':
+        return resnet20(num_classes=num_classes)
+    elif arch.lower() == 'resnet32':
+        return resnet32(num_classes=num_classes)
+    elif arch.lower() == 'resnet44':
+        return resnet44(num_classes=num_classes)
+    elif arch.lower() == 'resnet56':
+        return resnet56(num_classes=num_classes)
+    elif arch.lower() == 'resnet110':
+        return resnet110(num_classes=num_classes)
+    elif arch.lower() == 'resnet1202':
+        return resnet1202(num_classes=num_classes)
+    else:
+        raise ValueError('Unknown model architecture: {}'.format(arch))
+    
+        
     
