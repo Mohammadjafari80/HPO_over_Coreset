@@ -82,27 +82,56 @@ def get_features(model, trainloader, device):
 
     return features.squeeze(), targets
 
-def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch_size=128, num_workers=4, device='cuda'):
+from sklearn.neighbors import NearestNeighbors
+from collections import Counter
+
+def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch_size=128, num_workers=4, device='cuda', classwise=False):
     model = get_pretrained_model(model_name)
 
     coreset_loader = torch.utils.data.DataLoader(coreset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     full_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     
     # Get the coreset features and full features
-    coreset_features, _ = get_features(model, coreset_loader, device)
-    full_features, _ = get_features(model, full_loader, device)
+    coreset_features, coreset_labels = get_features(model, coreset_loader, device)
+    full_features, full_labels = get_features(model, full_loader, device)
 
-    # Compute the nearest neighbors of each full feature in the coreset features
-    cls = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(coreset_features)  # k=1 to get the closest neighbor
-    _, indices = cls.kneighbors(full_features)
+    # Edge case if classwise is True but there's no label information
+    if classwise and coreset_labels is None:
+        raise ValueError("No label information available, cannot proceed with classwise Nearest Neighbours")
 
     # Initialize an array to store the full_weights for each full sample
     full_weights = np.zeros(len(full_features))
 
-    # Assign weights of coreset samples to corresponding full samples
-    full_weights = coreset_weights[indices[:, 0]]
+    if classwise:
+        # get unique labels
+        unique_labels = list(set(coreset_labels))
+
+        # If classwise set to true, process per class
+        for label in unique_labels:
+            # separate the features for this class
+            specific_coreset_features = coreset_features[coreset_labels == label]
+            specific_full_features = full_features[full_labels == label]
+
+            # Continue if no elements for this label
+            if len(specific_coreset_features) == 0 or len(specific_full_features) == 0:
+                continue
+
+            # Compute the nearest neighbors of each full feature in the coreset features for this class
+            cls = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(specific_coreset_features)
+            _, indices = cls.kneighbors(specific_full_features)
+
+            # Assign weights of coreset samples to corresponding full samples
+            full_weights[full_labels == label] = coreset_weights[coreset_labels == label][indices[:, 0]]
+    else:
+        # Compute the nearest neighbors of each full feature in the coreset features
+        cls = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(coreset_features) 
+        _, indices = cls.kneighbors(full_features)
+
+        # Assign weights of coreset samples to corresponding full samples
+        full_weights = coreset_weights[indices[:, 0]]
 
     return full_weights
+
 
 
 

@@ -113,6 +113,15 @@ def parse_args():
     parser.add_argument(
         "--device", type=str, default="cuda", choices=("cuda", "cpu")
     )
+    
+    parser.add_argument(
+        "--weight-assignment",
+        type=str,
+        default="non-classwise",
+        choices=("classwise, non-classwise"),
+        help="Weight assignment strategy",
+    )
+    
     parser.add_argument("--wandb-api", type=str)
     
     return parser.parse_args()

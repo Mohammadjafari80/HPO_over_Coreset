@@ -107,7 +107,7 @@ def main():
         train(model, trainset, testset, torch.ones(len(trainset)), args.batch_size, args.device, args.epochs, args.milestone_ratios, args.test_interval, args.lr, args.momentum, args.wd)
     elif args.weighting_method == 'meta_weight_net':
         coreset_imagenet = CustomSubset(train_dataset_imagenet, coreset_indices)
-        weights = broadcast_weights(args.feature_extractor, coreset_weights, train_dataset_imagenet, coreset_imagenet, num_workers=int(args.num_workers), device=args.device)
+        weights = broadcast_weights(args.feature_extractor, coreset_weights, train_dataset_imagenet, coreset_imagenet, num_workers=int(args.num_workers), device=args.device, classwise=args.weight_assignment == 'classwise')
         histogram['full_weights'] = get_histogram(weights)
         log_on_wandb(histogram)
         train(model, trainset, testset, weights, args.batch_size, args.device, args.epochs, args.milestone_ratios, args.test_interval, args.lr, args.momentum, args.wd)
