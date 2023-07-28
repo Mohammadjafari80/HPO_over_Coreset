@@ -26,7 +26,8 @@ def set_seed(seed=1):
 def log_on_wandb(results):
     try:
         wandb.log(results)
-    except:
+    except Exception as e:
+        print(e)
         print("Failed to Log Results on WANDB!")
         
 class WeightedCrossEntropyLoss(nn.Module):
@@ -133,10 +134,10 @@ def broadcast_weights(model_name, coreset_weights, train_dataset, coreset, batch
     return full_weights
 
 
-
+from matplotlib import pyplot as plt
 
 def get_histogram(weights):
-    # Compute the histogram using np.histogram
-    hist = np.histogram(weights, bins=20, range=(0, 1))
-
-    return wandb.Histogram(np_histogram=hist)
+    weights = np.array(weights).tolist()
+    data = [[w] for w in weights]
+    table = wandb.Table(data=data, columns=["weights"])
+    return wandb.plot.histogram(table, "weights", title="Weights Distribution")

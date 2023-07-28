@@ -43,7 +43,7 @@ def train_step(model, criterion, optimizer, dataloader, epoch, total_epochs, dev
             t.set_postfix(loss=running_loss / (i + 1), accuracy = correct / total)
 
     
-    return running_loss, correct / total
+    return running_loss / total , correct / total
               
 
 def train(model, train_dataset, test_dataset, weights, batch_size, device, total_epochs, milestone_ratios = [0.5, 0.75], test_interval = 5, learning_rate = 0.1, momentum = 0.9, weight_decay = 5e-4):

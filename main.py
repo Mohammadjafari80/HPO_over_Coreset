@@ -76,22 +76,27 @@ def main():
     
     coreset_weights = None
     
+    weighted_coreset_accuracy = '-'
+    
     if args.weighting_method == 'meta_weight_net':
         default_args = get_args()
         default_args.dataset = args.dataset
         default_args.num_classes = get_classes_count(args.dataset)
         coreset = CustomSubset(trainset, coreset_indices)
-        num_meta = max(int(0.05 * len(coreset)), 50)
+        num_meta = max(int(0.2 * len(coreset)), 100)
         default_args.num_meta = num_meta
-        coreset_weights = meta_weight_net(default_args, coreset, testset)
+        coreset_weights, weighted_coreset_accuracy = meta_weight_net(default_args, coreset, testset)
     elif args.weighting_method == 'uniform':
         coreset_weights = torch.ones(coreset_indices.shape[0])
     else:
         raise NotImplementedError
         
+    
+    
 
-    histogram = {
-        'coreset_weights': get_histogram(coreset_weights),
+    pre_info = {
+        'weighted_coreset_accuracy': weighted_coreset_accuracy,
+        'coreset_weights': get_histogram(coreset_weights)
     }
     
     model = get_model(args.arch, get_classes_count(args.dataset)).to(args.device)
@@ -102,14 +107,14 @@ def main():
         print("Failed to watch model!")
         
     if args.weighting_method == 'uniform':
-        histogram['full_weights'] = get_histogram(torch.ones(len(trainset)))
-        log_on_wandb(histogram)
+        pre_info['full_weights'] = get_histogram(torch.ones(len(trainset)))
+        log_on_wandb(pre_info)
         train(model, trainset, testset, torch.ones(len(trainset)), args.batch_size, args.device, args.epochs, args.milestone_ratios, args.test_interval, args.lr, args.momentum, args.wd)
     elif args.weighting_method == 'meta_weight_net':
         coreset_imagenet = CustomSubset(train_dataset_imagenet, coreset_indices)
         weights = broadcast_weights(args.feature_extractor, coreset_weights, train_dataset_imagenet, coreset_imagenet, num_workers=int(args.num_workers), device=args.device, classwise=args.weight_assignment == 'classwise')
-        histogram['full_weights'] = get_histogram(weights)
-        log_on_wandb(histogram)
+        pre_info['full_weights'] = get_histogram(weights)
+        log_on_wandb(pre_info)
         train(model, trainset, testset, weights, args.batch_size, args.device, args.epochs, args.milestone_ratios, args.test_interval, args.lr, args.momentum, args.wd)
     else:
         raise NotImplementedError

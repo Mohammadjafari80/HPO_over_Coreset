@@ -34,7 +34,8 @@ def meta_weight_net(args, trainset, testset):
     )
 
     meta_dataloader_iter = iter(meta_dataloader)
-
+    final_test_accuracy = 0
+    
     with tqdm(list(range(args.max_epoch)), unit="epoch") as t:
         for epoch in t:
 
@@ -101,7 +102,8 @@ def meta_weight_net(args, trainset, testset):
             )
 
             t.set_postfix(test_loss=test_loss, test_accuracy = test_accuracy)
-        
+            final_test_accuracy = test_accuracy
+            
     weight_array = []
     
     for iteration, (inputs, labels) in enumerate(train_dataloader_unshuffled):
@@ -116,4 +118,4 @@ def meta_weight_net(args, trainset, testset):
             
         weight_array.extend(weight.cpu().numpy().squeeze().tolist())
         
-    return np.array(weight_array)
+    return np.array(weight_array), final_test_accuracy
