@@ -32,6 +32,7 @@ def train_step(model, criterion, optimizer, dataloader, epoch, total_epochs, dev
             outputs = model(inputs)
             loss = criterion(outputs, labels, w)
             loss.backward()
+            clip_gradient(optimizer, 1.0)
             optimizer.step()
 
             # Print statistics
@@ -77,3 +78,12 @@ def train(model, train_dataset, test_dataset, weights, batch_size, device, total
             
             
         log_on_wandb(results)
+        
+def clip_gradient(optimizer, grad_clip):
+    assert grad_clip > 0, "gradient clip value must be greater than 1"
+    for group in optimizer.param_groups:
+        for param in group["params"]:
+            # gradient
+            if param.grad is None:
+                continue
+            param.grad.data.clamp_(-grad_clip, grad_clip)
