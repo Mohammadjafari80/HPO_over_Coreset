@@ -9,6 +9,10 @@ import torchvision.transforms as transforms
 import torch
 from torch.utils.data import Dataset, Subset
 import numpy as np
+import requests
+from PIL import Image
+import pandas as pd
+import pickle
 
 class CustomSubset(Subset):
     def __init__(self, dataset, indices):
@@ -35,7 +39,7 @@ STD = {
 SIZE = {
     'cifar10': 32,
     'cifar100': 32,
-    'tinyimagenet': 64,
+    'tinyimagenet': 32,
     'imagenet': 224
 }
 
@@ -55,43 +59,77 @@ class CustomWeightedDataset(Dataset):
         return data, label, weight
 
 
-class TinyImageNetDataset(ImageFolder):
-    """Tiny ImageNet dataset."""
-    
-    def __init__(self, root, train=True, transform=None, download=False):
+class TinyImageNet(Dataset):
+    BASE_URL = 'http://cs231n.stanford.edu/tiny-imagenet-200.zip'
+    FILE_NAME = 'tiny-imagenet-200.zip'
+
+    def __init__(self, root, transform=None, train=True):
         self.root = root
-        self.train = train
         self.transform = transform
-        self.download = download
-        self.classes = list(range(200))
+        self.train = train
 
-        if download:
-            self._download()
+        # Check if files are already downloaded
+        if not os.path.exists(os.path.join(self.root, 'tiny-imagenet-200')):
+            self.download()
 
-        if train:
-            path = os.path.join(root, 'tiny-imagenet-200', 'train')
-        else:
-            path = os.path.join(root, 'tiny-imagenet-200', 'val')
+        self.data, self.labels, self.label_to_idx = self.load_dataset()
 
-        super(TinyImageNetDataset, self).__init__(path, transform=transform)
+    def __len__(self):
+        return len(self.data)
 
-    def _download(self):
-        dataset_folder = os.path.join(self.root, 'tiny-imagenet-200')
-        if os.path.exists(dataset_folder):
-            print("Dataset already exists. No need to download.")
-            return
+    def __getitem__(self, idx):
+        img_path, label = self.data[idx], self.labels[idx]
 
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
+        # Load image
+        img = Image.open(img_path)
 
-        url = 'http://cs231n.stanford.edu/tiny-imagenet-200.zip'
-        file_path = os.path.join(self.root, 'tiny-imagenet-200.zip')
-        urllib.request.urlretrieve(url, file_path)
+        if self.transform:
+            img = self.transform(img)
 
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        return img, label
+
+    def download(self):
+        response = requests.get(self.BASE_URL, stream=True)
+        file_size = int(response.headers['Content-Length'])
+        chunk = 1
+        chunk_size = 1024
+        num_bars = int(file_size / chunk_size)
+
+        with open(os.path.join(self.root, self.FILE_NAME), 'wb') as fp:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                fp.write(chunk)
+
+        # Extract the zip file
+        with zipfile.ZipFile(os.path.join(self.root, self.FILE_NAME), 'r') as zip_ref:
             zip_ref.extractall(self.root)
 
-        os.remove(file_path)
+    def load_dataset(self):
+        if self.train:
+            data_dir = os.path.join(self.root, 'tiny-imagenet-200', 'train')
+            folders = os.listdir(data_dir)
+            data = []
+            labels = []
+            label_to_idx = {folder: i for i, folder in enumerate(folders)}
+
+            for folder in folders:
+                for file in os.listdir(os.path.join(data_dir, folder, 'images')):
+                    file_path = os.path.join(data_dir, folder, 'images', file)
+                    data.append(file_path)
+                    labels.append(label_to_idx[folder])
+
+            with open(os.path.join(self.root, 'label_to_idx.pkl'), 'wb') as f:
+                pickle.dump(label_to_idx, f)
+        else:
+            data_dir = os.path.join(self.root, 'tiny-imagenet-200', 'val')
+            annotations = pd.read_csv(os.path.join(data_dir, 'val_annotations.txt'), sep='\t', header=None, index_col=False)
+            data = [os.path.join(data_dir, 'images', filename) for filename in annotations[0]]
+
+            with open(os.path.join(self.root, 'label_to_idx.pkl'), 'rb') as f:
+                label_to_idx = pickle.load(f)
+
+            labels = [label_to_idx[label] for label in annotations[1]]
+
+        return data, labels, label_to_idx
     
 
 def get_classes_count(dataset_name):
@@ -108,7 +146,7 @@ def get_classes_count(dataset_name):
 DATASETS_DICT = {
     'cifar10': CIFAR10,
     'cifar100': CIFAR100,
-    'TinyImageNet': TinyImageNetDataset,
+    'TinyImageNet': TinyImageNet,
 }
 
 def get_transforms(dataset_name):
@@ -120,6 +158,7 @@ def get_transforms(dataset_name):
 
     train_transform = transforms.Compose([
             transforms.Resize(size=size),
+            transforms.Lambda(lambda img: img.convert('RGB')),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
@@ -127,6 +166,7 @@ def get_transforms(dataset_name):
     
     test_transform = transforms.Compose([
             transforms.Resize(size=size),
+            transforms.Lambda(lambda img: img.convert('RGB')),
             transforms.ToTensor(),
             normalize,
     ])
@@ -135,8 +175,8 @@ def get_transforms(dataset_name):
 
 
 def get_dataset(dataset_name, root, train=True, transform=None, download=True):
-    if dataset_name == 'TinyImageNet':
-        return TinyImageNetDataset(root, train=train, transform=transform, download=download)
+    if dataset_name == 'tinyimagenet':
+        return TinyImageNet(root, train=train, transform=transform)
     elif dataset_name == 'cifar10':
         return CIFAR10(root, train=train, transform=transform, download=download)
     elif dataset_name == 'cifar100':

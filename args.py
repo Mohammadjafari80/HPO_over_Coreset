@@ -7,6 +7,7 @@ def parse_args():
 
     # Model
     parser.add_argument("--arch", type=str, help="Model achitecture",
+                        default="preactresnet18",
                         choices=["preactresnet18",
                                  "preactresnet34",
                                  "preactresnet50",
@@ -27,7 +28,7 @@ def parse_args():
     parser.add_argument(
         "--dataset",
         type=str,
-        choices=["cifar10", "cifar100", "TinyImageNet"],
+        choices=["cifar10", "cifar100", "tinyimagenet"],
         help="Dataset for training and eval",
     )
     
@@ -118,7 +119,7 @@ def parse_args():
         "--weight-assignment",
         type=str,
         default="non-classwise",
-        choices=("classwise, non-classwise"),
+        choices=("classwise", "non-classwise"),
         help="Weight assignment strategy",
     )
     
